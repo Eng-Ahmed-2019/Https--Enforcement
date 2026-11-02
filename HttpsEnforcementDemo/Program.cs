@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Antiforgery;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -25,6 +27,30 @@ builder.Services.AddHsts(options =>
     // options.IncludeSubDomains = true; // prod
 });
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-XSRF-TOKEN";
+});
+
+/*
+builder.Services
+    .AddAuthentication()
+    .AddCookie(options =>
+    {
+        // lax is: 	يسمح ببعض حالات التنقل الآمنة، ويمنع أغلب الطلبات Cross-Site
+        // strict: 	يمنع إرسال Cookie في أغلب سياقات التنقل Cross-Site
+        // none: 	يسمح بإرسال Cookie في سياقات Cross-Site، ويتطلب Secure
+
+        options.Cookie.HttpOnly = true;
+
+        options.Cookie.SecurePolicy =
+            CookieSecurePolicy.Always;
+
+        options.Cookie.SameSite =
+            SameSiteMode.Lax;
+    });
+*/
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -43,11 +69,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/user", () =>
+app.MapGet("/api/User/GetUsers", () =>
 {
     return Results.Ok(new { UserId = 15, UserName = "Ahmed", Message = "Secure Connection" });
 });
-app.MapGet("/secret", () =>
+app.MapGet("/api/Secret/GetData", () =>
 {
     return Results.Ok(new
     {
@@ -59,6 +85,39 @@ app.MapGet("/secret", () =>
         ApiKeyConfigured = string.IsNullOrWhiteSpace(apiKey)
                             ? "Empty" : apiKey
     });
+});
+app.MapGet("/api/AntiForgery/CreateToken", (
+    IAntiforgery antiforgery,
+    HttpContext context
+) =>
+{
+    var tokens = antiforgery.GetAndStoreTokens(context);
+
+    return Results.Ok(new
+    {
+        Token = tokens.RequestToken
+    });
+});
+app.MapPost("/api/Transfer/TransMoney", async (
+    HttpContext context,
+    IAntiforgery antiforgery) =>
+{
+    try
+    {
+        await antiforgery.ValidateRequestAsync(context);
+
+        return Results.Ok(new
+        {
+            Message = "Transfer completed successfully"
+        });
+    }
+    catch (AntiforgeryValidationException)
+    {
+        return Results.BadRequest(new
+        {
+            Message = "Invalid Anti-Forgery Token"
+        });
+    }
 });
 app.MapControllers();
 app.Run();
