@@ -1,23 +1,39 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddHttpsRedirection(options =>
+{
+    options.HttpsPort = 7213;
+    options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
+});
+
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(30);
+    options.IncludeSubDomains = false; // dev
+    // options.IncludeSubDomains = true; // prod
+});
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseHsts();
 }
-
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
+app.MapGet("/user", () =>
+{
+    return Results.Ok(new { UserId = 15, UserName = "Ahmed", Message = "Secure Connection" });
+});
 app.MapControllers();
-
 app.Run();
