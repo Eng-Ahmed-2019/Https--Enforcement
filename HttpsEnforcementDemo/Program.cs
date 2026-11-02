@@ -2,6 +2,34 @@ using Microsoft.AspNetCore.Antiforgery;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            //.WithOrigins("*")
+            .WithOrigins("https://localhost:5173", "https://myfrontend.com")
+            .WithMethods("GET", "POST", "PUT", "DELETE")
+            .WithHeaders("Content-Type", "Authorization");
+            //.AllowCredentials().AllowAnyOrigin(); // not secure
+    });
+});
+
+// if proj work with cookies
+/*
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            .WithOrigins("https://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+*/
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 //var apiKey = builder.Configuration.GetValue<string>("ApiKey");
 var apiKey = builder.Configuration["ExternalApi:ApiKey"];
@@ -119,5 +147,10 @@ app.MapPost("/api/Transfer/TransMoney", async (
         });
     }
 });
+app.UseStaticFiles();
+app.UseRouting();
+app.UseCors("FrontendPolicy");
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 app.Run();
